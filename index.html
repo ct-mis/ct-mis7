@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>幫警察堵住小偷</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #dbeafe; /* 淺天藍色背景 (Sky 100) */
+            color: #1e293b;
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* --- 頂部導航欄 (卡通風格) --- */
+        .top-bar {
+            width: 100%;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+            max-width: 600px;
+            margin-top: 5px;
+        }
+
+        /* 通用按鈕樣式 */
+        .cartoon-btn {
+            border: 3px solid #5d4037; /* 深棕色邊框 */
+            box-shadow: 0 4px 0 #5d4037;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.1s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 900;
+            color: #5d4037;
+            position: relative;
+        }
+        
+        .cartoon-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #5d4037;
+        }
+
+        /* 返回按鈕 (黃色箭頭) */
+        .btn-back {
+            background: #fcd34d; /* Amber 300 */
+            width: 50px;
+            height: 48px;
+            border-radius: 12px;
+        }
+        
+        /* 重試按鈕 (紅色圓形) */
+        .btn-retry {
+            background: #ef4444; /* Red 500 */
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            color: white;
+            border-color: #7f1d1d; /* 深紅邊框 */
+            box-shadow: 0 4px 0 #7f1d1d;
+        }
+        .btn-retry:active { box-shadow: 0 0 0 #7f1d1d; }
+
+        /* 跳過按鈕 (黃色膠囊) */
+        .btn-skip {
+            background: #fcd34d;
+            padding: 0 20px;
+            height: 44px;
+            border-radius: 22px;
+            font-size: 1.1rem;
+            color: #78350f;
+        }
+
+        /* 中間的鑰匙顯示 (棕色膠囊) */
+        .key-badge {
+            background: #78350f; /* Amber 900 */
+            color: white;
+            height: 44px;
+            padding: 0 24px;
+            border-radius: 22px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 3px solid #451a03;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+            font-size: 1.25rem;
+            font-weight: 900;
+            min-width: 110px;
+            justify-content: center;
+        }
+
+        .game-title {
+            font-size: 2rem;
+            color: #334155;
+            font-weight: 900;
+            margin: 10px 0 5px 0;
+            text-align: center;
+            letter-spacing: 1px;
+            /* 文字外框效果 */
+            text-shadow: 
+                2px 2px 0px #ffffff,
+                -1px -1px 0 #ffffff,  
+                1px -1px 0 #ffffff,
+                -1px 1px 0 #ffffff,
+                1px 1px 0 #ffffff;
+        }
+
+        canvas {
+            flex-grow: 1;
+            width: 100%;
+            max-width: 550px;
+            max-height: 80vh;
+            touch-action: none;
+            /* 讓 Canvas 稍微浮起來 */
+            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.1));
+            margin-bottom: 20px;
+        }
+
+        /* --- 彈窗樣式 --- */
+        #message-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(4px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        #message-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-card {
+            background: #ffffff;
+            padding: 2.5rem 2rem;
+            border-radius: 2.5rem;
+            text-align: center;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+            border: 8px solid #60a5fa; /* Blue 400 */
+            width: 85%;
+            max-width: 360px;
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        
+        #message-overlay.active .modal-card {
+            transform: scale(1);
+        }
+
+        .modal-btn {
+            background: #3b82f6;
+            color: white;
+            font-size: 1.5rem;
+            padding: 12px 0;
+            border-radius: 50px;
+            font-weight: 900;
+            margin-top: 25px;
+            width: 100%;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #1d4ed8;
+            transition: transform 0.1s;
+        }
+        
+        .modal-btn:active {
+            transform: translateY(6px);
+            box-shadow: 0 0 0 #1d4ed8;
+        }
+
+        .hidden-img {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- UI Header -->
+    <div class="top-bar">
+        <!-- 返回 (黃色箭頭) -->
+        <button class="cartoon-btn btn-back" onclick="location.reload()" title="返回">
+             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#78350f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+        </button>
+        
+        <!-- 重玩 (紅色循環) -->
+        <button class="cartoon-btn btn-retry" onclick="game.retryLevel()" title="重玩">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        </button>
+        
+        <!-- 鑰匙 Level -->
+        <div class="key-badge">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="#fcd34d"><path d="M21 10h-8c-.55 0-1 .45-1 1v4c0 .55.45 1 1 1h8c.55 0 1-.45 1-1v-4c0-.55-.45-1-1-1zM8 11c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 8c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z"/></svg>
+            <span id="level-display" style="padding-top: 2px;">1</span>
+        </div>
+        
+        <!-- 跳過 -->
+        <button class="cartoon-btn btn-skip" onclick="game.skipLevel()">
+            跳過
+        </button>
+    </div>
+
+    <div class="game-title">幫警察堵住小偷</div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- 結果彈窗 -->
+    <div id="message-overlay">
+        <div class="modal-card">
+            <div id="result-icon" style="font-size: 5rem; line-height: 1; margin-bottom: 10px;">👮‍♂️</div>
+            <h2 id="result-title" class="text-3xl font-black mb-2 text-slate-800">準備開始</h2>
+            <div id="result-desc" class="text-slate-500 text-lg font-bold">
+                移動警察堵住小偷。<br>警察先手。
+            </div>
+            <button class="modal-btn" onclick="game.startNewGame()">開始遊戲</button>
+        </div>
+    </div>
+    
+    <!-- 預載圖片 -->
+    <img id="img-thief" src="1.png" class="hidden-img" alt="Thief">
+    <img id="img-police" src="2.png" class="hidden-img" alt="Police">
+</div>
+
+<script>
+    class Game {
+        constructor() {
+            this.canvas = document.getElementById('gameCanvas');
+            this.ctx = this.canvas.getContext('2d');
+            
+            // 載入圖片資源
+            this.thiefImg = document.getElementById('img-thief');
+            this.policeImg = document.getElementById('img-police');
+            this.imagesLoaded = { thief: false, police: false };
+            
+            // 圖片加載監聽
+            const checkLoad = () => { 
+                // 只在遊戲已經初始化後才重繪
+                if(this.nodes && this.nodes.length > 0) this.draw(); 
+            };
+            
+            if(this.thiefImg.complete) this.imagesLoaded.thief = true;
+            else this.thiefImg.onload = () => { this.imagesLoaded.thief = true; checkLoad(); };
+            
+            if(this.policeImg.complete) this.imagesLoaded.police = true;
+            else this.policeImg.onload = () => { this.imagesLoaded.police = true; checkLoad(); };
+            
+            // 遊戲狀態
+            this.level = 1; 
+            this.nodes = [];
+            this.connections = [];
+            this.police = []; 
+            this.thief = { nodeId: 0, x: 0, y: 0 };
+            
+            this.selectedPoliceIndex = -1; 
+            this.isPlayerTurn = true;
+            this.gameOver = false;
+            this.animating = false;
+
+            // 視覺配色 (復刻圖片)
+            this.colors = {
+                lineFill: '#637ec9',    // 管道中間色 (偏紫藍)
+                lineBorder: '#394b85',  // 管道邊框 (深藍)
+                nodeInner: '#eff6ff',   // 節點內部 (白/淺藍)
+                nodeRing: '#8FA1D1',    // 節點外環
+                nodeRingActive: '#FCD34D' // 選中時的黃色
+            };
+
+            this.resize();
+            window.addEventListener('resize', () => this.resize());
+            
+            // 綁定事件
+            this.canvas.addEventListener('mousedown', (e) => this.handleClick(e));
+            this.canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.handleClick(e.touches[0]);
+            }, {passive: false});
+            
+            // 初始彈窗
+            document.getElementById('message-overlay').classList.add('active');
+        }
+
+        resize() {
+            const headerHeight = 140; // 預留頂部空間
+            // 寬度限制，確保在寬螢幕上不會變形太嚴重
+            this.canvas.width = Math.min(window.innerWidth, 600); 
+            this.canvas.height = window.innerHeight - headerHeight;
+            if (this.nodes.length > 0) this.draw();
+        }
+
+        startNewGame() {
+            document.getElementById('message-overlay').classList.remove('active');
+            this.startLevel();
+        }
+        
+        retryLevel() {
+            document.getElementById('message-overlay').classList.remove('active');
+            this.startLevel();
+        }
+
+        skipLevel() {
+            this.level++;
+            this.updateLevelDisplay();
+            this.startLevel();
+        }
+
+        updateLevelDisplay() {
+            document.getElementById('level-display').innerText = this.level;
+        }
+
+        startLevel() {
+            this.gameOver = false;
+            this.isPlayerTurn = true;
+            this.selectedPoliceIndex = -1;
+            this.generateLevel();
+            this.draw();
+        }
+
+        // --- 核心：地圖與生成邏輯 ---
+        generateLevel() {
+            this.nodes = [];
+            this.connections = [];
+
+            /*
+              規則調整：
+              1. 初始 Level 1: 8 個節點。
+                 結構為：Layer 0 (1個, 小偷), Layer 1 (2個), Layer 2 (3個, 警察), Layer 3 (2個, 出口)。
+                 總數: 1+2+3+2 = 8。剛好滿足需求。
+              2. 每個 Level 增加 3-5 條線條 (透過增加中間層的寬度或層數來實現)。
+              3. 警察數目 = 固定 3 個。
+              4. 警察位置 = 出口處的前一格 (Layer 2)。
+            */
+            
+            // 定義每一層的節點數量
+            let layersConfig = [];
+            
+            if (this.level === 1) {
+                // 經典 8 節點結構，適合 3 個警察 (Layer 2 有 3 個位置)
+                layersConfig = [1, 2, 3, 2]; 
+            } else {
+                // 擴展邏輯：基於等級動態生成
+                // 基礎結構
+                layersConfig = [1, 2, 3, 2];
+                
+                // 每升一級，增加一些複雜度
+                const increases = this.level - 1;
+                
+                // 策略：交替增加層數(變長)和增加寬度(變寬)
+                for (let i = 0; i < increases; i++) {
+                    if (i % 2 === 0) {
+                        // 變長：在中間插入一層，寬度隨機 3 或 4
+                        const insertIndex = layersConfig.length - 2; 
+                        const newWidth = Math.random() > 0.5 ? 3 : 4;
+                        layersConfig.splice(insertIndex, 0, newWidth);
+                    } else {
+                        // 變寬：嘗試讓中間某層變寬 (最大寬度 4，避免手機太擠)
+                        // 找到一個寬度 < 4 的中間層
+                        const midLayerIdx = Math.floor(layersConfig.length / 2);
+                        if (layersConfig[midLayerIdx] < 4) {
+                            layersConfig[midLayerIdx]++;
+                        } else {
+                            // 如果中間滿了，就在上面加一層
+                            layersConfig.splice(1, 0, 3);
+                        }
+                    }
+                }
+                
+                // 確保倒數第二層 (警察生成層) 至少有 3 個位置，以便放置 3 名警察
+                // 如果倒數第二層少於 3 個，強制設為 3
+                if (layersConfig[layersConfig.length - 2] < 3) {
+                    layersConfig[layersConfig.length - 2] = 3;
+                }
+            }
+
+            // --- 生成節點座標 ---
+            const w = this.canvas.width;
+            const h = this.canvas.height;
+            const paddingV = 60;
+            const paddingH = 40;
+            
+            const numLayers = layersConfig.length;
+            const availableHeight = h - paddingV * 2;
+            const layerStepY = availableHeight / (numLayers - 1);
+            
+            let idCounter = 0;
+            const nodesByLayer = [];
+
+            for (let r = 0; r < numLayers; r++) {
+                const count = layersConfig[r];
+                const rowNodes = [];
+                
+                // 計算水平分佈
+                const spreadW = w - paddingH * 2;
+                // 讓節點間距適中
+                const layerRealWidth = Math.min(spreadW, count * 85); 
+                const startX = (w - layerRealWidth) / 2;
+                
+                for (let c = 0; c < count; c++) {
+                    let cx;
+                    if (count === 1) cx = w / 2;
+                    else cx = startX + (c * (layerRealWidth / (count - 1)));
+
+                    const node = {
+                        id: idCounter++,
+                        row: r,
+                        col: c,
+                        x: cx,
+                        y: paddingV + r * layerStepY,
+                        neighbors: [],
+                        isExit: (r === numLayers - 1) // 規則：最後一層是出口
+                    };
+                    this.nodes.push(node);
+                    rowNodes.push(node);
+                }
+                nodesByLayer.push(rowNodes);
+            }
+
+            // --- 建立連線 (限制每個節點向下最多連接2條) ---
+            for (let r = 0; r < numLayers - 1; r++) {
+                const currentLayer = nodesByLayer[r];
+                const nextLayer = nodesByLayer[r+1];
+
+                for (let i = 0; i < currentLayer.length; i++) {
+                    const parent = currentLayer[i];
+                    
+                    // 找出下一層所有節點中，距離合理的候選人
+                    let candidates = nextLayer.map(child => ({
+                        node: child,
+                        distX: Math.abs(child.x - parent.x)
+                    }));
+                    candidates.sort((a,b) => a.distX - b.distX);
+                    
+                    // 規則：向下最多連 2 條
+                    let connectionsMade = 0;
+                    
+                    for (let k = 0; k < candidates.length; k++) {
+                        if (connectionsMade >= 2) break;
+                        
+                        const child = candidates[k].node;
+                        
+                        // 距離限制
+                        if (candidates[k].distX < (w / 2)) { 
+                            this.addEdge(parent, child);
+                            connectionsMade++;
+                        }
+                    }
+                }
+                
+                // 孤兒檢查
+                nextLayer.forEach(child => {
+                    const hasParent = child.neighbors.some(nid => {
+                        const n = this.nodes.find(node => node.id === nid);
+                        return n.row === r;
+                    });
+                    
+                    if (!hasParent) {
+                        let bestParent = currentLayer[0];
+                        let minDx = 9999;
+                        currentLayer.forEach(p => {
+                            const d = Math.abs(p.x - child.x);
+                            if (d < minDx) { minDx = d; bestParent = p; }
+                        });
+                        this.addEdge(bestParent, child);
+                    }
+                });
+
+                // 橫向連接：少量添加，僅在中間層
+                if (r > 0 && r < numLayers - 1) {
+                    for(let i=0; i<currentLayer.length-1; i++) {
+                         // 50% 機率連接相鄰，增加路徑多樣性
+                        if (Math.random() > 0.5) this.addEdge(currentLayer[i], currentLayer[i+1]);
+                    }
+                }
+            }
+
+            // --- 角色配置 ---
+            // 1. 小偷：固定在 Level 0 (頂層)
+            this.thief = { nodeId: this.nodes[0].id, x: this.nodes[0].x, y: this.nodes[0].y };
+
+            // 2. 警察：固定 3 名
+            // 位置：出口處的前一格 (即倒數第二層)
+            this.police = [];
+            
+            const policeLayerIndex = numLayers - 2;
+            const potentialSpawns = nodesByLayer[policeLayerIndex];
+            
+            // 我們需要選 3 個位置。如果倒數第二層位置不夠 (例如只有 2 個)，則往上找一層
+            let availableSpawns = [...potentialSpawns];
+            if (availableSpawns.length < 3) {
+                 if (nodesByLayer[policeLayerIndex - 1]) {
+                     availableSpawns = availableSpawns.concat(nodesByLayer[policeLayerIndex - 1]);
+                 }
+            }
+            
+            // 優先選擇 "下方有連接出口" 的節點 (更像守門員)
+            // 但為了簡單與隨機性，我們直接取中間的三個或者平均分佈
+            
+            // 如果剛好 3 個，全選
+            // 如果 > 3 個，選分佈最廣的 3 個 (左、中、右)
+            let selectedSpawns = [];
+            
+            if (availableSpawns.length <= 3) {
+                selectedSpawns = availableSpawns;
+            } else {
+                // 取頭、中、尾
+                selectedSpawns.push(availableSpawns[0]);
+                selectedSpawns.push(availableSpawns[Math.floor(availableSpawns.length / 2)]);
+                selectedSpawns.push(availableSpawns[availableSpawns.length - 1]);
+            }
+
+            // 如果還是不夠 3 個 (極端情況)，重複使用 (疊加) 或者往旁邊找
+            // 在我們的 generate 邏輯中，我們強制倒數第二層 >= 3，所以這裡通常安全
+            
+            for (let i = 0; i < 3; i++) {
+                const spawnNode = selectedSpawns[i % selectedSpawns.length];
+                this.police.push({
+                    id: i,
+                    nodeId: spawnNode.id,
+                    x: spawnNode.x,
+                    y: spawnNode.y
+                });
+            }
+        }
+
+        addEdge(n1, n2) {
+            if (!n1.neighbors.includes(n2.id)) {
+                n1.neighbors.push(n2.id);
+                n2.neighbors.push(n1.id);
+                this.connections.push([n1, n2]);
+            }
+        }
+
+        // --- 交互邏輯 ---
+        handleClick(e) {
+            if (this.gameOver || !this.isPlayerTurn || this.animating) return;
+
+            // 座標轉換 (Canvas 縮放適配)
+            const rect = this.canvas.getBoundingClientRect();
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            
+            const clientX = e.clientX || e.pageX;
+            const clientY = e.clientY || e.pageY;
+            
+            const clickX = (clientX - rect.left) * scaleX;
+            const clickY = (clientY - rect.top) * scaleY;
+            const hitR = 40; // 判定半徑
+
+            // 1. 檢查是否點擊了警察 (選中)
+            let clickedPoliceIndex = -1;
+            this.police.forEach((p, index) => {
+                if (Math.hypot(p.x - clickX, p.y - clickY) < hitR) {
+                    clickedPoliceIndex = index;
+                }
+            });
+
+            if (clickedPoliceIndex !== -1) {
+                this.selectedPoliceIndex = clickedPoliceIndex;
+                this.draw();
+                return;
+            }
+
+            // 2. 如果已選中警察，檢查是否點擊了鄰居節點 (移動)
+            if (this.selectedPoliceIndex !== -1) {
+                const activePolice = this.police[this.selectedPoliceIndex];
+                const currentNode = this.nodes.find(n => n.id === activePolice.nodeId);
+                
+                // 遍歷所有節點看點到了誰
+                for (let n of this.nodes) {
+                    if (Math.hypot(n.x - clickX, n.y - clickY) < hitR) {
+                        // 判斷是否為合法移動：是鄰居 且 沒有被佔用
+                        if (currentNode.neighbors.includes(n.id)) {
+                            if (!this.isOccupied(n.id)) {
+                                this.playerMove(n);
+                            } else {
+                                // 點擊了有人佔據的格子，不做動作或提示
+                            }
+                        } else {
+                            // 點擊了非鄰居，取消選中
+                            this.selectedPoliceIndex = -1;
+                            this.draw();
+                        }
+                        return;
+                    }
+                }
+                // 點擊空白處，取消選中
+                this.selectedPoliceIndex = -1;
+                this.draw();
+            }
+        }
+
+        isOccupied(nodeId) {
+            // 小偷位置
+            if (this.thief.nodeId === nodeId) return true;
+            // 其他警察位置
+            return this.police.some(p => p.nodeId === nodeId);
+        }
+
+        playerMove(targetNode) {
+            this.isPlayerTurn = false;
+            const p = this.police[this.selectedPoliceIndex];
+            
+            // 更新邏輯位置前先播放動畫
+            this.animateMove(p, targetNode, () => {
+                p.nodeId = targetNode.id;
+                this.selectedPoliceIndex = -1;
+                
+                // 檢查是否抓到 (移動到了小偷的位置) - 雖然 isOccupied 擋住了，但這是雙重保險
+                if (p.nodeId === this.thief.nodeId) {
+                    this.endGame(true);
+                    return;
+                }
+                
+                // 輪到小偷
+                setTimeout(() => this.thiefTurn(), 300);
+            });
+        }
+
+        thiefTurn() {
+            if (this.gameOver) return;
+            
+            const tNode = this.nodes.find(n => n.id === this.thief.nodeId);
+            
+            // 找出所有鄰居
+            const neighbors = tNode.neighbors.map(id => this.nodes.find(n => n.id === id));
+            
+            // 過濾掉有人的格子 (警察是牆)
+            const validMoves = neighbors.filter(n => !this.isOccupied(n.id));
+
+            // 如果無路可走 -> 警察獲勝
+            if (validMoves.length === 0) {
+                this.endGame(true);
+                return;
+            }
+
+            // AI 策略：BFS 尋找最近的出口
+            let bestMove = null;
+            let minDistance = 99999;
+            
+            // 打亂順序增加隨機性 (若距離相等)
+            validMoves.sort(() => Math.random() - 0.5);
+
+            for (let move of validMoves) {
+                // 如果這一步就是出口，直接贏
+                if (move.isExit) {
+                    bestMove = move;
+                    break;
+                }
+                
+                // 計算從這個 move 到最近出口的距離
+                const dist = this.bfsToExit(move);
+                
+                // 如果距離比當前最短還短，選擇它
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    bestMove = move;
+                }
+            }
+            
+            // 如果所有路都走不到出口 (minDistance 還是很大)，就隨便走一步拖延時間
+            if (!bestMove) {
+                bestMove = validMoves[0];
+            }
+
+            this.animateMove(this.thief, bestMove, () => {
+                this.thief.nodeId = bestMove.id;
+                
+                if (bestMove.isExit) {
+                    this.endGame(false); // 小偷逃脫
+                } else {
+                    this.isPlayerTurn = true;
+                    this.draw();
+                }
+            });
+        }
+
+        bfsToExit(startNode) {
+            let queue = [{node: startNode, dist: 0}];
+            let visited = new Set([startNode.id]);
+            // 把警察當作障礙物
+            const policeIds = this.police.map(p => p.nodeId);
+
+            while(queue.length > 0) {
+                const {node, dist} = queue.shift();
+                if (node.isExit) return dist;
+
+                for (let nid of node.neighbors) {
+                    if (!visited.has(nid) && !policeIds.includes(nid)) {
+                        visited.add(nid);
+                        queue.push({
+                            node: this.nodes.find(n => n.id === nid),
+                            dist: dist + 1
+                        });
+                    }
+                }
+            }
+            return 99999; // 無法到達
+        }
+
+        animateMove(actor, target, callback) {
+            this.animating = true;
+            const startX = actor.x;
+            const startY = actor.y;
+            const startTime = performance.now();
+            const duration = 250; // ms
+            
+            const loop = (t) => {
+                const p = Math.min((t - startTime) / duration, 1);
+                // 簡單的緩動 (Ease-out)
+                const easeP = 1 - Math.pow(1 - p, 2);
+                
+                actor.x = startX + (target.x - startX) * easeP;
+                actor.y = startY + (target.y - startY) * easeP;
+                
+                this.draw();
+                
+                if(p < 1) requestAnimationFrame(loop);
+                else {
+                    this.animating = false;
+                    actor.x = target.x; // 修正最終位置誤差
+                    actor.y = target.y;
+                    if(callback) callback();
+                }
+            };
+            requestAnimationFrame(loop);
+        }
+
+        endGame(playerWon) {
+            this.gameOver = true;
+            const overlay = document.getElementById('message-overlay');
+            const icon = document.getElementById('result-icon');
+            const title = document.getElementById('result-title');
+            const desc = document.getElementById('result-desc');
+            const btn = document.querySelector('.modal-btn');
+
+            overlay.classList.add('active');
+
+            if(playerWon) {
+                this.level++; // 只有贏了才升級
+                icon.innerText = "🏆";
+                title.innerText = "抓捕成功！";
+                title.className = "text-3xl font-black mb-2 text-blue-600";
+                desc.innerText = "做得好！小偷無路可逃。";
+                btn.innerText = "下一關";
+                btn.onclick = () => this.startNewGame();
+            } else {
+                // 輸了不升級，重試
+                icon.innerText = "😭";
+                title.innerText = "小偷溜走了";
+                title.className = "text-3xl font-black mb-2 text-red-500";
+                desc.innerText = "防線被突破，再試一次吧。";
+                btn.innerText = "重來";
+                btn.onclick = () => this.retryLevel();
+            }
+            this.updateLevelDisplay();
+        }
+
+        // --- 繪圖邏輯 ---
+        draw() {
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+            // 1. 繪製連線 (管道風格)
+            this.ctx.lineCap = "round";
+            this.ctx.lineJoin = "round";
+            
+            this.connections.forEach(([n1, n2]) => {
+                this.ctx.beginPath();
+                this.ctx.moveTo(n1.x, n1.y);
+                this.ctx.lineTo(n2.x, n2.y);
+                
+                // 深色邊框
+                this.ctx.lineWidth = 14;
+                this.ctx.strokeStyle = this.colors.lineBorder;
+                this.ctx.stroke();
+                
+                // 淺色內芯
+                this.ctx.lineWidth = 8;
+                this.ctx.strokeStyle = this.colors.lineFill;
+                this.ctx.stroke();
+            });
+
+            // 2. 移動提示 (黃色光暈)
+            if (this.isPlayerTurn && this.selectedPoliceIndex !== -1 && !this.animating) {
+                const p = this.police[this.selectedPoliceIndex];
+                const pNode = this.nodes.find(n => n.id === p.nodeId);
+                
+                pNode.neighbors.forEach(nid => {
+                    // 只有空格子才顯示提示
+                    if (!this.isOccupied(nid)) {
+                        const t = this.nodes.find(n => n.id === nid);
+                        this.ctx.beginPath();
+                        this.ctx.arc(t.x, t.y, 18, 0, Math.PI*2);
+                        this.ctx.fillStyle = 'rgba(252, 211, 77, 0.7)';
+                        this.ctx.fill();
+                        this.ctx.lineWidth = 2;
+                        this.ctx.strokeStyle = '#f59e0b';
+                        this.ctx.stroke();
+                    }
+                });
+            }
+
+            // 3. 繪製節點
+            this.nodes.forEach(n => {
+                // 如果是出口，先畫底部標籤
+                if (n.isExit) this.drawExitLabel(n.x, n.y);
+
+                // 節點外環
+                this.ctx.beginPath();
+                this.ctx.arc(n.x, n.y, 16, 0, Math.PI*2);
+                this.ctx.fillStyle = this.colors.nodeRing;
+                this.ctx.fill();
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeStyle = this.colors.lineBorder;
+                this.ctx.stroke();
+
+                // 節點內部
+                this.ctx.beginPath();
+                this.ctx.arc(n.x, n.y, 10, 0, Math.PI*2);
+                this.ctx.fillStyle = this.colors.nodeInner;
+                this.ctx.fill();
+                
+                // 如果該節點上有被選中的警察 -> 高亮外框
+                const isSelectedPoliceHere = this.police.some(p => p.nodeId === n.id && this.police.indexOf(p) === this.selectedPoliceIndex);
+                if (isSelectedPoliceHere) {
+                    this.ctx.beginPath();
+                    this.ctx.arc(n.x, n.y, 20, 0, Math.PI*2);
+                    this.ctx.strokeStyle = this.colors.nodeRingActive;
+                    this.ctx.lineWidth = 3;
+                    this.ctx.stroke();
+                }
+            });
+
+            // 4. 繪製角色
+            // 先畫未選中的警察
+            this.police.forEach((p, i) => {
+                if (i !== this.selectedPoliceIndex) this.drawChar(p, this.policeImg, '👮‍♂️', false);
+            });
+            // 畫小偷
+            this.drawChar(this.thief, this.thiefImg, '🦹', false);
+            // 最後畫選中的警察 (置頂)
+            if (this.selectedPoliceIndex !== -1) {
+                this.drawChar(this.police[this.selectedPoliceIndex], this.policeImg, '👮‍♂️', true);
+            }
+        }
+        
+        drawExitLabel(x, y) {
+            this.ctx.save();
+            // 文字
+            this.ctx.fillStyle = "#394b85";
+            this.ctx.font = "700 13px 'Noto Sans TC'";
+            this.ctx.textAlign = "center";
+            this.ctx.textBaseline = "middle";
+            this.ctx.fillText("出口", x, y + 34);
+            
+            // 底部半圓裝飾
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 22, 0, Math.PI*2);
+            this.ctx.strokeStyle = "rgba(57, 75, 133, 0.3)";
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
+            this.ctx.restore();
+        }
+
+        drawChar(obj, img, emoji, isSelected) {
+            const size = 56; // 角色尺寸
+            const r = size / 2;
+            
+            this.ctx.save();
+            this.ctx.translate(obj.x, obj.y);
+            
+            // 站立位置調整 (稍微往上，讓腳踩在點上)
+            let offsetY = -20;
+            if (isSelected) {
+                // 選中時跳動效果
+                const jump = Math.abs(Math.sin(Date.now() / 200)) * -6;
+                offsetY += jump;
+            }
+            this.ctx.translate(0, offsetY);
+
+            // 判斷是否使用圖片
+            let useImage = false;
+            if (obj === this.thief && this.imagesLoaded.thief) useImage = true;
+            else if (obj !== this.thief && this.imagesLoaded.police) useImage = true;
+
+            if (useImage) {
+                // 繪製圖片
+                // 為了讓圖片看起來像卡通貼紙，加個白色輪廓光暈
+                this.ctx.shadowColor = "white";
+                this.ctx.shadowBlur = 0;
+                this.ctx.drawImage(img, -r, -r, size, size);
+            } else {
+                // Fallback Emoji
+                this.ctx.font = "42px sans-serif";
+                this.ctx.textAlign = "center";
+                this.ctx.textBaseline = "middle";
+                // 為了讓Emoji清楚，加白底
+                this.ctx.shadowColor = "white";
+                this.ctx.shadowBlur = 8;
+                this.ctx.fillText(emoji, 0, 0);
+            }
+            
+            this.ctx.restore();
+        }
+    }
+
+    const game = new Game();
+    
+    // 動畫循環，用於選中時的跳動效果
+    function animate() {
+        if (game.selectedPoliceIndex !== -1 || game.animating) {
+            game.draw();
+        }
+        requestAnimationFrame(animate);
+    }
+    animate();
+    
+    // 啟動第一關
+    game.startLevel();
+
+</script>
+</body>
+</html>
